@@ -2,6 +2,7 @@ import type {
   User, AuthResponse, Pin, PinDetail, LeaderboardEntry,
   HeatmapData, ReactionType, PlaceSuggestion, GeoResult, StoryGroup,
 } from './types';
+import { apiUrl, apiHeaders } from './config';
 
 const ACCESS_KEY = 'amici_access_token';
 const REFRESH_KEY = 'amici_refresh_token';
@@ -28,9 +29,9 @@ async function refreshAccessToken(): Promise<string | null> {
   const refresh = getRefreshToken();
   if (!refresh) return null;
 
-  const res = await fetch('/api/auth/refresh', {
+  const res = await fetch(apiUrl('/api/auth/refresh'), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: apiHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ refresh_token: refresh }),
   });
 
@@ -46,12 +47,12 @@ async function refreshAccessToken(): Promise<string | null> {
 
 async function request<T>(url: string, options: RequestInit = {}, retry = true): Promise<T> {
   const token = getAccessToken();
-  const headers: Record<string, string> = {
+  const headers: Record<string, string> = apiHeaders({
     ...(options.headers as Record<string, string>),
-  };
+  });
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const res = await fetch(url, { ...options, headers });
+  const res = await fetch(apiUrl(url), { ...options, headers });
 
   if (res.status === 401 && retry) {
     const newToken = await refreshAccessToken();

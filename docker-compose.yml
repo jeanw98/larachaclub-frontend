@@ -1,12 +1,16 @@
 services:
   frontend:
-    build: .
+    build:
+      context: .
+      args:
+        VITE_API_URL: ${VITE_API_URL:-}
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-8080}:80"
     env_file:
       - .env
     environment:
-      API_PROXY_URL: ${API_PROXY_URL:-http://host.docker.internal:3001}
+      API_PROXY_URL: ${API_PROXY_URL:-${VITE_API_URL:-http://host.docker.internal:3001}}
+      API_PROXY_HOST: ${API_PROXY_HOST:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"
