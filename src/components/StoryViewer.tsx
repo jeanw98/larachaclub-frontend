@@ -12,12 +12,15 @@ interface Props {
 }
 
 const PHOTO_DURATION_MS = 5000;
+const MAX_VIDEO_MS = 31000;
 
 export default function StoryViewer({ group, startIndex = 0, onClose, onNextUser, onGoToMap }: Props) {
   const [index, setIndex] = useState(startIndex);
   const [progress, setProgress] = useState(0);
   const [muted, setMuted] = useState(true);
+  const [videoLoading, setVideoLoading] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const advancingRef = useRef(false);
 
   const items = group.items;
   const item = items[index];
@@ -26,9 +29,13 @@ export default function StoryViewer({ group, startIndex = 0, onClose, onNextUser
   const isVideo = mediaType === 'video';
 
   const goNext = useCallback(() => {
+    if (advancingRef.current) return;
+    advancingRef.current = true;
+
     if (index < items.length - 1) {
       setIndex((i) => i + 1);
       setProgress(0);
+      window.setTimeout(() => { advancingRef.current = false; }, 200);
     } else {
       markStorySeen(items.map((i) => i.id));
       onNextUser?.() ?? onClose();
@@ -37,15 +44,27 @@ export default function StoryViewer({ group, startIndex = 0, onClose, onNextUser
 
   const goPrev = () => {
     if (index > 0) {
+      advancingRef.current = false;
       setIndex((i) => i - 1);
       setProgress(0);
     }
   };
 
-  // Progreso automático para fotos
+  useEffect(() => {
+    setIndex(startIndex);
+    setProgress(0);
+    advancingRef.current = false;
+  }, [group.user_id, startIndex]);
+
+  useEffect(() => {
+    markStorySeen([item.id]);
+  }, [item.id]);
+
+  // Fotos: avance automático
   useEffect(() => {
     if (isVideo) return;
     setProgress(0);
+    advancingRef.current = false;
     const start = Date.now();
     const timer = window.setInterval(() => {
       const pct = Math.min(((Date.now() - start) / PHOTO_DURATION_MS) * 100, 100);
@@ -53,25 +72,108 @@ export default function StoryViewer({ group, startIndex = 0, onClose, onNextUser
       if (pct >= 100) goNext();
     }, 50);
     return () => window.clearInterval(timer);
-  }, [index, isVideo, goNext]);
+  }, [index, isVideo, item.id, goNext]);
 
-  // Respaldo: si el video no dispara onEnded, avanzar igual
+  // Videos: cargar, reproducir y sincronizar progreso
   useEffect(() => {
     if (!isVideo) return;
-    const maxMs = Math.min((item.duration_seconds || 30) + 1, 31) * 1000;
-    const timer = window.setTimeout(goNext, maxMs);
-    return () => window.clearTimeout(timer);
-  }, [index, isVideo, item.duration_seconds, item.id, goNext]);
+
+    const video = videoRef.current;
+    if (!video) return;
+
+    setProgress(0);
+    setVideoLoading(true);
+    advancingRef.current = false;
+
+    let fallbackTimer: number | null = null;
+    let stalled = false;
+
+    const clearFallback = () => {
+      if (fallbackTimer != null) {
+        window.clearTimeout(fallbackTimer);
+        fallbackTimer = null;
+      }
+    };
+
+    const scheduleFallback = () => {
+      clearFallback();
+      const durationMs = video.duration && isFinite(video.duration)
+        ? Math.min(video.duration * 1000 + 800, MAX_VIDEO_MS)
+        : Math.min((item.duration_seconds || 30) * 1000 + 800, MAX_VIDEO_MS);
+      fallbackTimer = window.setTimeout(() => {
+        if (!stalled) goNext();
+      }, durationMs);
+    };
+
+    const handlePlaying = () => {
+      setVideoLoading(false);
+      stalled = false;
+      scheduleFallback();
+    };
+
+    const handleWaiting = () => {
+      setVideoLoading(true);
+      stalled = true;
+    };
+
+    const handleTimeUpdate = () => {
+      if (!video.duration || !isFinite(video.duration)) return;
+      setProgress((video.currentTime / video.duration) * 100);
+    };
+
+    const handleEnded = () => {
+      clearFallback();
+      goNext();
+    };
+
+    const handleError = () => {
+      clearFallback();
+      setVideoLoading(false);
+      window.setTimeout(goNext, 800);
+    };
+
+    const startPlayback = async () => {
+      try {
+        video.currentTime = 0;
+        await video.play();
+      } catch {
+        video.muted = true;
+        setMuted(true);
+        try {
+          await video.play();
+        } catch {
+          handleError();
+        }
+      }
+    };
+
+    video.addEventListener('playing', handlePlaying);
+    video.addEventListener('waiting', handleWaiting);
+    video.addEventListener('timeupdate', handleTimeUpdate);
+    video.addEventListener('ended', handleEnded);
+    video.addEventListener('error', handleError);
+
+    if (video.readyState >= 2) {
+      startPlayback();
+    } else {
+      video.addEventListener('loadeddata', startPlayback, { once: true });
+    }
+
+    return () => {
+      clearFallback();
+      video.pause();
+      video.removeEventListener('playing', handlePlaying);
+      video.removeEventListener('waiting', handleWaiting);
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+      video.removeEventListener('ended', handleEnded);
+      video.removeEventListener('error', handleError);
+    };
+  }, [index, isVideo, item.id, item.duration_seconds, mediaUrl, goNext]);
 
   useEffect(() => {
-    markStorySeen([item.id]);
-  }, [item.id]);
-
-  const handleVideoTimeUpdate = () => {
-    const v = videoRef.current;
-    if (!v || !v.duration || !isFinite(v.duration)) return;
-    setProgress((v.currentTime / v.duration) * 100);
-  };
+    const video = videoRef.current;
+    if (video) video.muted = muted;
+  }, [muted, item.id]);
 
   const expiresAt = new Date(item.expires_at);
   const hoursLeft = Math.max(0, Math.ceil((expiresAt.getTime() - Date.now()) / 3600000));
@@ -102,7 +204,14 @@ export default function StoryViewer({ group, startIndex = 0, onClose, onNextUser
         </div>
         <div className="story-header-actions">
           {isVideo && (
-            <button type="button" className="story-mute" onClick={() => setMuted((m) => !m)}>
+            <button
+              type="button"
+              className="story-mute"
+              onClick={(e) => {
+                e.stopPropagation();
+                setMuted((m) => !m);
+              }}
+            >
               {muted ? '🔇' : '🔊'}
             </button>
           )}
@@ -110,26 +219,30 @@ export default function StoryViewer({ group, startIndex = 0, onClose, onNextUser
         </div>
       </div>
 
-      {isVideo ? (
-        <video
-          key={item.id}
-          ref={videoRef}
-          className="story-image"
-          src={mediaUrl}
-          autoPlay
-          playsInline
-          muted={muted}
-          preload="auto"
-          onEnded={goNext}
-          onTimeUpdate={handleVideoTimeUpdate}
-        />
-      ) : (
-        <img key={item.id} className="story-image" src={mediaUrl} alt="" />
-      )}
+      <div className="story-media-wrap">
+        {isVideo ? (
+          <video
+            key={item.id}
+            ref={videoRef}
+            className="story-image"
+            src={mediaUrl}
+            playsInline
+            muted={muted}
+            preload="auto"
+          />
+        ) : (
+          <img key={item.id} className="story-image" src={mediaUrl} alt="" />
+        )}
+        {isVideo && videoLoading && (
+          <div className="story-video-loading">
+            <div className="loading-spinner" />
+          </div>
+        )}
+      </div>
 
       <div className="story-tap-zones">
-        <div className="story-tap-left" onClick={goPrev} />
-        <div className="story-tap-right" onClick={goNext} />
+        <button type="button" className="story-tap-left" onClick={goPrev} aria-label="Anterior" />
+        <button type="button" className="story-tap-right" onClick={goNext} aria-label="Siguiente" />
       </div>
 
       {(item.caption || item.place_name) && (

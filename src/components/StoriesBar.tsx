@@ -1,5 +1,4 @@
 import type { StoryGroup } from '../types';
-import MediaDisplay from './MediaDisplay';
 
 const SEEN_KEY = 'amici_seen_stories';
 
@@ -25,15 +24,22 @@ export function markStorySeen(pinIds: string[]) {
 function StoryThumbnail({ group }: { group: StoryGroup }) {
   const preview = group.items[group.items.length - 1];
   const url = preview.media_url || preview.image_url;
+  const isVideo = preview.media_type === 'video';
 
   return (
     <div className="story-ring-inner">
-      <MediaDisplay
-        url={url}
-        mediaType={preview.media_type || 'image'}
-        muted
-      />
-      {preview.media_type === 'video' && <span className="story-thumb-video">▶</span>}
+      {isVideo ? (
+        <video
+          className="story-thumb-media"
+          src={`${url}#t=0.1`}
+          muted
+          playsInline
+          preload="metadata"
+        />
+      ) : (
+        <img className="story-thumb-media" src={url} alt="" />
+      )}
+      {isVideo && <span className="story-thumb-video">▶</span>}
       {group.items.length > 1 && (
         <span className="story-thumb-count">{group.items.length}</span>
       )}
@@ -59,7 +65,11 @@ export default function StoriesBar({ stories, currentUserId, onOpen }: Props) {
         {myStory && (
           <button
             className={`story-avatar ${isStoryUnseen(myStory) ? 'unseen' : 'seen'}`}
-            onClick={() => onOpen(myStory)}
+            onClick={() => {
+              const seen = getSeenIds();
+              const firstUnseen = myStory.items.findIndex((i) => !seen.has(i.id));
+              onOpen(myStory, firstUnseen >= 0 ? firstUnseen : 0);
+            }}
           >
             <div className="story-ring" style={{ borderColor: myStory.avatar_color }}>
               <StoryThumbnail group={myStory} />
@@ -71,7 +81,11 @@ export default function StoriesBar({ stories, currentUserId, onOpen }: Props) {
           <button
             key={group.user_id}
             className={`story-avatar ${isStoryUnseen(group) ? 'unseen' : 'seen'}`}
-            onClick={() => onOpen(group)}
+            onClick={() => {
+              const seen = getSeenIds();
+              const firstUnseen = group.items.findIndex((i) => !seen.has(i.id));
+              onOpen(group, firstUnseen >= 0 ? firstUnseen : 0);
+            }}
           >
             <div className="story-ring" style={{ borderColor: group.avatar_color }}>
               <StoryThumbnail group={group} />
