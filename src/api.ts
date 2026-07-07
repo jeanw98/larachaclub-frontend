@@ -1,7 +1,9 @@
 import type {
   User, AuthResponse, Pin, PinDetail, LeaderboardEntry,
   HeatmapData, ReactionType, PlaceSuggestion, GeoResult, StoryGroup, NotificationItem,
+  UserDailyStats, StreakLeaderboardEntry, StreakActivityType,
 } from './types';
+import { localDateStr } from './utils/streakTiers';
 import { apiUrl, apiHeaders } from './config';
 
 const ACCESS_KEY = 'amici_access_token';
@@ -116,6 +118,22 @@ export async function updateNickname(nickname: string): Promise<User> {
 
 export async function getLeaderboard(): Promise<LeaderboardEntry[]> {
   return request<LeaderboardEntry[]>('/api/users/leaderboard');
+}
+
+export async function getMyDailyStats(): Promise<UserDailyStats> {
+  return request<UserDailyStats>(`/api/streaks/me?date=${localDateStr()}`);
+}
+
+export async function logDailyActivity(type: StreakActivityType): Promise<UserDailyStats> {
+  return request<UserDailyStats>('/api/streaks/log', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type, date: localDateStr() }),
+  });
+}
+
+export async function getStreakLeaderboard(type: StreakActivityType): Promise<StreakLeaderboardEntry[]> {
+  return request<StreakLeaderboardEntry[]>(`/api/streaks/leaderboard?type=${type}&date=${localDateStr()}`);
 }
 
 export async function getPins(): Promise<Pin[]> {

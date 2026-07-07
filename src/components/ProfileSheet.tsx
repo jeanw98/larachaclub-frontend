@@ -1,9 +1,68 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import type { DailyCounterState, StreakActivityType, UserDailyStats } from '../types';
+import * as api from '../api';
 import { IconClose } from './Icons';
 
 interface Props {
   onClose: () => void;
+}
+
+function CounterCard({
+  label,
+  emoji,
+  stats,
+  loading,
+  onCheckIn,
+}: {
+  label: string;
+  emoji: string;
+  stats: DailyCounterState | null;
+  loading: boolean;
+  onCheckIn: () => void;
+}) {
+  const streak = stats?.current_streak ?? 0;
+
+  return (
+    <div className="daily-counter-card">
+      <div className="daily-counter-head">
+        <span className="daily-counter-label">{emoji} {label}</span>
+        {stats && (
+          <span className={`streak-tier-badge tier-${stats.tier.toLowerCase().replace(/\s+/g, '-')}`}>
+            {stats.tier}
+          </span>
+        )}
+      </div>
+
+      <div className="daily-counter-stats">
+        <div className="daily-counter-stat">
+          <span className="daily-counter-value">{streak}</span>
+          <span className="daily-counter-meta">días de racha{streak > 0 ? ' 🔥' : ''}</span>
+        </div>
+        {stats && stats.longest_streak > 0 && (
+          <div className="daily-counter-stat secondary">
+            <span className="daily-counter-value">{stats.longest_streak}</span>
+            <span className="daily-counter-meta">mejor racha</span>
+          </div>
+        )}
+        {stats && stats.total_days > 0 && (
+          <div className="daily-counter-stat secondary">
+            <span className="daily-counter-value">{stats.total_days}</span>
+            <span className="daily-counter-meta">días totales</span>
+          </div>
+        )}
+      </div>
+
+      <button
+        type="button"
+        className={`btn-daily ${stats?.checked_today ? 'checked' : ''}`}
+        onClick={onCheckIn}
+        disabled={loading || stats?.checked_today}
+      >
+        {loading ? '…' : stats?.checked_today ? '✓ Registrado hoy' : label}
+      </button>
+    </div>
+  );
 }
 
 export default function ProfileSheet({ onClose }: Props) {
@@ -12,6 +71,24 @@ export default function ProfileSheet({ onClose }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
+  const [stats, setStats] = useState<UserDailyStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [checking, setChecking] = useState<StreakActivityType | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await api.getMyDailyStats();
+        if (!cancelled) setStats(data);
+      } catch {
+        if (!cancelled) setStats(null);
+      } finally {
+        if (!cancelled) setStatsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   if (!user) return null;
 
@@ -46,6 +123,18 @@ export default function ProfileSheet({ onClose }: Props) {
     }
   };
 
+  const handleCheckIn = async (type: StreakActivityType) => {
+    setChecking(type);
+    try {
+      const data = await api.logDailyActivity(type);
+      setStats(data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo registrar');
+    } finally {
+      setChecking(null);
+    }
+  };
+
   return (
     <div className="sheet-overlay" onClick={onClose}>
       <div className="sheet profile-sheet" onClick={(e) => e.stopPropagation()}>
@@ -64,6 +153,28 @@ export default function ProfileSheet({ onClose }: Props) {
             <IconClose size={18} />
           </button>
         </div>
+
+        <p className="menu-label">La racha de hoy</p>
+        {statsLoading ? (
+          <p className="field-hint">Cargando contadores…</p>
+        ) : (
+          <div className="daily-counters">
+            <CounterCard
+              label="Tuve coito hoy"
+              emoji="💋"
+              stats={stats?.coito ?? null}
+              loading={checking === 'coito'}
+              onCheckIn={() => handleCheckIn('coito')}
+            />
+            <CounterCard
+              label="Entrené hoy"
+              emoji="💪"
+              stats={stats?.entreno ?? null}
+              loading={checking === 'entreno'}
+              onCheckIn={() => handleCheckIn('entreno')}
+            />
+          </div>
+        )}
 
         <label className="field-label" htmlFor="nickname-input">Apodo</label>
         <input

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { MapContainer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
-import type { Pin, LeaderboardEntry, StoryGroup, NotificationItem } from '../types';
+import type { Pin, StoryGroup, NotificationItem } from '../types';
 import * as api from '../api';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { useTheme } from '../context/ThemeContext';
@@ -48,7 +48,6 @@ export default function MapView() {
   const [activeCluster, setActiveCluster] = useState<PinCluster | null>(null);
   const [addPinCoords, setAddPinCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [heatmapOn, setHeatmapOn] = useState(false);
   const [heatmapMode, setHeatmapMode] = useState('density');
   const [heatmapPoints, setHeatmapPoints] = useState<[number, number, number][]>([]);
@@ -108,11 +107,7 @@ export default function MapView() {
     }
   };
 
-  const openLeaderboard = async () => {
-    const data = await api.getLeaderboard();
-    setLeaderboard(data);
-    setShowLeaderboard(true);
-  };
+  const openLeaderboard = () => setShowLeaderboard(true);
 
   const openStory = (group: StoryGroup, index = 0) => {
     setActiveStory({ group, index });
@@ -317,7 +312,7 @@ export default function MapView() {
       )}
 
       {showLeaderboard && (
-        <Leaderboard entries={leaderboard} onClose={() => setShowLeaderboard(false)} />
+        <Leaderboard onClose={() => setShowLeaderboard(false)} />
       )}
 
       {activeStory && (

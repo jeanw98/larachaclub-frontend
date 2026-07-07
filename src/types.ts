@@ -72,6 +72,34 @@ export interface LeaderboardEntry {
   cool_name?: string;
 }
 
+export type StreakActivityType = 'coito' | 'entreno';
+
+export interface DailyCounterState {
+  activity_type: StreakActivityType;
+  checked_today: boolean;
+  current_streak: number;
+  longest_streak: number;
+  total_days: number;
+  tier: string;
+  last_log_date: string | null;
+}
+
+export interface UserDailyStats {
+  coito: DailyCounterState;
+  entreno: DailyCounterState;
+}
+
+export interface StreakLeaderboardEntry {
+  id: string;
+  nickname: string;
+  avatar_color: string;
+  current_streak: number;
+  longest_streak: number;
+  total_days: number;
+  tier: string;
+  rank_position?: number;
+}
+
 export interface HeatmapData {
   mode: string;
   points: [number, number, number][];
