@@ -1,0 +1,12 @@
+services:
+  frontend:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    env_file:
+      - .env
+    environment:
+      API_PROXY_URL: ${API_PROXY_URL:-http://host.docker.internal:3001}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
