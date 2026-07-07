@@ -7,6 +7,7 @@ import { useGeolocation } from '../hooks/useGeolocation';
 import { useTheme } from '../context/ThemeContext';
 import { countUnread, markNotificationsRead } from '../utils/notifications';
 import { groupPinsByProximity, type PinCluster } from '../utils/pinClusters';
+import { filterVisiblePins } from '../utils/pinVisibility';
 import { createSinglePinIcon, createStackPinIcon } from './PinClusterIcons';
 import HeatmapLayer from './HeatmapLayer';
 import UserLocationLayer, { MapFlyTo } from './UserLocationLayer';
@@ -61,7 +62,10 @@ export default function MapView() {
   const [flyToTarget, setFlyToTarget] = useState<{ lat: number; lng: number; zoom?: number } | null>(null);
   const [flyToTargetKey, setFlyToTargetKey] = useState(0);
 
-  const pinClusters = useMemo(() => groupPinsByProximity(pins), [pins]);
+  const pinClusters = useMemo(
+    () => groupPinsByProximity(filterVisiblePins(pins)),
+    [pins],
+  );
 
   const loadNotifications = useCallback(() => {
     api.getNotifications()
@@ -87,6 +91,14 @@ export default function MapView() {
   }, [loadPins, loadStories, loadNotifications]);
 
   useEffect(() => { refreshAll(); }, [refreshAll]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      loadPins();
+      loadStories();
+    }, 5 * 60 * 1000);
+    return () => window.clearInterval(interval);
+  }, [loadPins, loadStories]);
 
   useEffect(() => {
     loadNotifications();

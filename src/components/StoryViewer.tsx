@@ -175,8 +175,9 @@ export default function StoryViewer({ group, startIndex = 0, onClose, onNextUser
     if (video) video.muted = muted;
   }, [muted, item.id]);
 
-  const expiresAt = new Date(item.expires_at);
-  const hoursLeft = Math.max(0, Math.ceil((expiresAt.getTime() - Date.now()) / 3600000));
+  const hoursLeft = item.is_epic || item.is_permanent || !item.expires_at
+    ? null
+    : Math.max(0, Math.ceil((new Date(item.expires_at).getTime() - Date.now()) / 3600000));
 
   return (
     <div className="story-viewer">
@@ -200,7 +201,9 @@ export default function StoryViewer({ group, startIndex = 0, onClose, onNextUser
           </div>
           <span>{group.nickname}</span>
           <span className="story-counter">{index + 1}/{items.length}</span>
-          <span className="story-time">{hoursLeft}h restantes</span>
+          <span className="story-time">
+            {item.is_epic ? '⚡ Momento épico' : hoursLeft != null ? `${hoursLeft}h restantes` : 'Permanente'}
+          </span>
         </div>
         <div className="story-header-actions">
           {isVideo && (

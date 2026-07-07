@@ -3,6 +3,7 @@ import type { PinDetail, ReactionType } from '../types';
 import { REACTIONS } from '../types';
 import * as api from '../api';
 import MediaDisplay from './MediaDisplay';
+import { pinHoursLeft } from '../utils/pinVisibility';
 
 interface Props {
   pinId: string;
@@ -47,6 +48,7 @@ export default function PinDetailSheet({ pinId, onClose, onUpdate }: Props) {
 
   const mediaUrl = pin?.media_url || pin?.image_url || '';
   const mediaType = pin?.media_type || 'image';
+  const hoursLeft = pin ? pinHoursLeft(pin) : null;
 
   if (loading || !pin) {
     return (
@@ -78,6 +80,10 @@ export default function PinDetailSheet({ pinId, onClose, onUpdate }: Props) {
             </div>
             <div>
               <span className="name">{pin.user_name}</span>
+              {pin.is_epic && <span className="epic-moment-badge">⚡ Momento épico</span>}
+              {!pin.is_epic && hoursLeft != null && (
+                <p className="pin-expiry-hint">{hoursLeft}h restantes en el mapa</p>
+              )}
               {pin.place_name && <p className="place-tag">{pin.place_name}</p>}
               {pin.caption && <p className="caption">{pin.caption}</p>}
             </div>

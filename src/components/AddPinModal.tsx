@@ -152,13 +152,16 @@ export default function AddPinModal({ lat, lng, userLat, userLng, onClose, onCre
     setLoading(true);
     setError('');
     try {
-      await api.createPin(
+      const created = await api.createPin(
         media, lat, lng, caption,
         selectedPlace || undefined,
         duration ?? undefined,
         { lat: userLat!, lng: userLng! },
         fromCamera
       );
+      if (created.is_epic) {
+        window.alert('⚡ ¡Momento épico! Esta publicación queda en el mapa para siempre.');
+      }
       onCreated();
       onClose();
     } catch (e) {

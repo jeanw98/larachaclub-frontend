@@ -4,9 +4,10 @@ import { getPinThumbHtml } from '../utils/pinClusters';
 
 export function createSinglePinIcon(pin: Parameters<typeof getPinThumbHtml>[0]) {
   const inner = getPinThumbHtml(pin);
+  const epicBadge = pin.is_epic ? '<span class="epic-pin-badge" title="Momento épico">⚡</span>' : '';
   return L.divIcon({
     className: 'custom-pin',
-    html: `<div class="pin-marker ${pin.media_type === 'video' ? 'is-video' : ''}" style="border-color: ${pin.avatar_color || '#4ECDC4'}">${inner}</div>`,
+    html: `<div class="pin-marker-wrap ${pin.is_epic ? 'is-epic' : ''}">${epicBadge}<div class="pin-marker ${pin.media_type === 'video' ? 'is-video' : ''}" style="border-color: ${pin.avatar_color || '#4ECDC4'}">${inner}</div></div>`,
     iconSize: [48, 48],
     iconAnchor: [24, 48],
     popupAnchor: [0, -48],
@@ -27,7 +28,8 @@ export function createStackPinIcon(cluster: PinCluster) {
   return L.divIcon({
     className: 'custom-pin pin-stack-icon',
     html: `
-      <div class="pin-stack" role="button" aria-label="${count} pins en este lugar">
+      <div class="pin-stack ${cluster.pins.some((p) => p.is_epic) ? 'is-epic' : ''}" role="button" aria-label="${count} pins en este lugar">
+        ${cluster.pins.some((p) => p.is_epic) ? '<span class="epic-pin-badge">⚡</span>' : ''}
         ${layers}
         <span class="pin-stack-count">${count}</span>
       </div>

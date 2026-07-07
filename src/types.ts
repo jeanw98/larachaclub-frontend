@@ -40,6 +40,9 @@ export interface Pin {
   avg_rating?: number | null;
   user_has_rated?: boolean;
   user_rating?: number | null;
+  is_permanent?: boolean;
+  is_epic?: boolean;
+  expires_at?: string | null;
 }
 
 export interface Comment {
@@ -131,7 +134,9 @@ export interface StoryItem {
   place_name?: string | null;
   formatted_address?: string | null;
   created_at: string;
-  expires_at: string;
+  expires_at: string | null;
+  is_permanent?: boolean;
+  is_epic?: boolean;
 }
 
 export interface NotificationItem {
