@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+import { IconSun, IconMoon } from './Icons';
 
 export default function WelcomeScreen() {
   const { register, login } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [mode, setMode] = useState<'register' | 'login'>('register');
   const [nickname, setNickname] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -43,6 +46,14 @@ export default function WelcomeScreen() {
   return (
     <div className="welcome">
       <div className="welcome-bg" />
+      <button
+        type="button"
+        className="welcome-theme-btn icon-btn"
+        onClick={toggleTheme}
+        aria-label={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
+      >
+        {theme === 'dark' ? <IconSun size={18} /> : <IconMoon size={18} />}
+      </button>
       <div className="welcome-content">
         <h1>LaRachaClub</h1>
         <p className="welcome-tagline">

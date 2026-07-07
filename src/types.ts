@@ -90,6 +90,8 @@ export interface GeoResult {
 
 export interface StoryItem {
   id: string;
+  lat: number;
+  lng: number;
   image_url: string;
   media_url?: string;
   media_type?: MediaType;
@@ -99,6 +101,28 @@ export interface StoryItem {
   formatted_address?: string | null;
   created_at: string;
   expires_at: string;
+}
+
+export interface NotificationItem {
+  id: string;
+  type: 'comment' | 'reaction';
+  created_at: string;
+  body?: string | null;
+  rating?: number | null;
+  reaction_type?: ReactionType | null;
+  actor: {
+    id: string;
+    nickname: string;
+    avatar_color: string;
+  };
+  pin: {
+    id: string;
+    lat: number;
+    lng: number;
+    caption?: string;
+    place_name?: string | null;
+    media_type?: MediaType;
+  };
 }
 
 export interface StoryGroup {

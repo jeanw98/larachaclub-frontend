@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { Marker, Circle, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import type { UserCoords } from '../hooks/useGeolocation';
@@ -14,24 +14,37 @@ interface Props {
   coords: UserCoords | null;
   flyToOnLoad?: boolean;
   recenterTrigger?: number;
+  flyToTarget?: { lat: number; lng: number; zoom?: number } | null;
+  flyToTargetKey?: number;
 }
 
-export function MapFlyTo({ coords, flyToOnLoad, recenterTrigger }: Props) {
+export function MapFlyTo({ coords, flyToOnLoad, recenterTrigger, flyToTarget, flyToTargetKey }: Props) {
   const map = useMap();
-  const [hasFlown, setHasFlown] = useState(false);
+  const hasFlownRef = useRef(false);
+  const coordsRef = useRef(coords);
+  coordsRef.current = coords;
 
   useEffect(() => {
-    if (coords && flyToOnLoad && !hasFlown) {
+    if (coords && flyToOnLoad && !hasFlownRef.current) {
+      hasFlownRef.current = true;
       map.flyTo([coords.lat, coords.lng], 14, { duration: 1.2 });
-      setHasFlown(true);
     }
-  }, [coords, flyToOnLoad, hasFlown, map]);
+  }, [coords, flyToOnLoad, map]);
 
   useEffect(() => {
-    if (coords && recenterTrigger && recenterTrigger > 0) {
-      map.flyTo([coords.lat, coords.lng], 15, { duration: 0.8 });
-    }
-  }, [coords, recenterTrigger, map]);
+    if (!recenterTrigger || !coordsRef.current) return;
+    const c = coordsRef.current;
+    map.flyTo([c.lat, c.lng], Math.max(map.getZoom(), 14), { duration: 0.8 });
+  }, [recenterTrigger, map]);
+
+  useEffect(() => {
+    if (!flyToTarget || flyToTargetKey == null) return;
+    map.flyTo(
+      [flyToTarget.lat, flyToTarget.lng],
+      flyToTarget.zoom ?? 16,
+      { duration: 1 },
+    );
+  }, [flyToTarget, flyToTargetKey, map]);
 
   return null;
 }

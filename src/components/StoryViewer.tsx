@@ -1,17 +1,19 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { StoryGroup } from '../types';
 import { markStorySeen } from './StoriesBar';
+import { IconPinMap } from './Icons';
 
 interface Props {
   group: StoryGroup;
   startIndex?: number;
   onClose: () => void;
   onNextUser?: () => void;
+  onGoToMap?: (pinId: string, lat: number, lng: number) => void;
 }
 
 const PHOTO_DURATION_MS = 5000;
 
-export default function StoryViewer({ group, startIndex = 0, onClose, onNextUser }: Props) {
+export default function StoryViewer({ group, startIndex = 0, onClose, onNextUser, onGoToMap }: Props) {
   const [index, setIndex] = useState(startIndex);
   const [progress, setProgress] = useState(0);
   const [muted, setMuted] = useState(true);
@@ -135,6 +137,20 @@ export default function StoryViewer({ group, startIndex = 0, onClose, onNextUser
           {item.place_name && <p className="story-place">{item.place_name}</p>}
           {item.caption && <p className="story-caption">{item.caption}</p>}
         </div>
+      )}
+
+      {onGoToMap && item.lat != null && item.lng != null && (
+        <button
+          type="button"
+          className="story-go-map"
+          onClick={(e) => {
+            e.stopPropagation();
+            onGoToMap(item.id, item.lat, item.lng);
+          }}
+        >
+          <IconPinMap size={18} />
+          Ver en el mapa
+        </button>
       )}
     </div>
   );

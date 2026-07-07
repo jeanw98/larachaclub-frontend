@@ -8,6 +8,7 @@ interface AuthContextType {
   register: (data: api.RegisterData) => Promise<void>;
   login: (nickname: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  updateNickname: (nickname: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -42,8 +43,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
+  const updateNickname = async (nickname: string) => {
+    const updated = await api.updateNickname(nickname);
+    setUser(updated);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, register, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, register, login, logout, updateNickname }}>
       {children}
     </AuthContext.Provider>
   );

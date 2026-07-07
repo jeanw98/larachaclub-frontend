@@ -1,19 +1,27 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { MapContainer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
-import type { Pin, LeaderboardEntry, StoryGroup } from '../types';
+import type { Pin, LeaderboardEntry, StoryGroup, NotificationItem } from '../types';
 import * as api from '../api';
 import { useGeolocation } from '../hooks/useGeolocation';
+import { useTheme } from '../context/ThemeContext';
+import { countUnread, markNotificationsRead } from '../utils/notifications';
 import { groupPinsByProximity, type PinCluster } from '../utils/pinClusters';
 import { createSinglePinIcon, createStackPinIcon } from './PinClusterIcons';
 import HeatmapLayer from './HeatmapLayer';
 import UserLocationLayer, { MapFlyTo } from './UserLocationLayer';
+import GoogleMapLayer, { type GoogleMapType } from './GoogleMapLayer';
 import StoriesBar from './StoriesBar';
 import StoryViewer from './StoryViewer';
 import AddPinModal from './AddPinModal';
 import PinDetailSheet from './PinDetailSheet';
 import ClusterPickerSheet from './ClusterPickerSheet';
 import Leaderboard from './Leaderboard';
+import MapToolbar from './MapToolbar';
+import AppMenuSheet from './AppMenuSheet';
+import NotificationsPanel from './NotificationsPanel';
+import ProfileSheet from './ProfileSheet';
+import { IconSun, IconMoon, IconBell } from './Icons';
 import { useAuth } from '../context/AuthContext';
 import 'leaflet/dist/leaflet.css';
 
@@ -26,19 +34,12 @@ function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: number
   return null;
 }
 
-const HEATMAP_MODES = [
-  { id: 'density', label: '🔥 Densidad', emoji: '🔥' },
-  { id: 'funny', label: '😂 Gracioso', emoji: '😂' },
-  { id: 'love', label: '😍 Amor', emoji: '😍' },
-  { id: 'scare', label: '😱 Miedo', emoji: '😱' },
-  { id: 'awful', label: '🤮 Horrible', emoji: '🤮' },
-  { id: 'wow', label: '🤯 Wow', emoji: '🤯' },
-];
-
 const DEFAULT_CENTER: [number, number] = [20, 0];
+const DEFAULT_ZOOM = 3;
 
 export default function MapView() {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const { coords, error: geoError, loading: geoLoading, refresh: refreshLocation } = useGeolocation();
   const [pins, setPins] = useState<Pin[]>([]);
   const [stories, setStories] = useState<StoryGroup[]>([]);
@@ -51,14 +52,26 @@ export default function MapView() {
   const [heatmapOn, setHeatmapOn] = useState(false);
   const [heatmapMode, setHeatmapMode] = useState('density');
   const [heatmapPoints, setHeatmapPoints] = useState<[number, number, number][]>([]);
-  const [showHeatModes, setShowHeatModes] = useState(false);
   const [recenterTrigger, setRecenterTrigger] = useState(0);
-  const hasFlownRef = useRef(false);
+  const [mapType, setMapType] = useState<GoogleMapType>('roadmap');
+  const [showMenu, setShowMenu] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [flyToTarget, setFlyToTarget] = useState<{ lat: number; lng: number; zoom?: number } | null>(null);
+  const [flyToTargetKey, setFlyToTargetKey] = useState(0);
 
   const pinClusters = useMemo(() => groupPinsByProximity(pins), [pins]);
 
-  const mapCenter: [number, number] = coords ? [coords.lat, coords.lng] : DEFAULT_CENTER;
-  const mapZoom = coords ? 14 : 2;
+  const loadNotifications = useCallback(() => {
+    api.getNotifications()
+      .then((items) => {
+        setNotifications(items);
+        setUnreadCount(countUnread(items));
+      })
+      .catch(() => setNotifications([]));
+  }, []);
 
   const loadPins = useCallback(() => {
     api.getPins().then(setPins);
@@ -71,21 +84,21 @@ export default function MapView() {
   const refreshAll = useCallback(() => {
     loadPins();
     loadStories();
-  }, [loadPins, loadStories]);
+    loadNotifications();
+  }, [loadPins, loadStories, loadNotifications]);
 
   useEffect(() => { refreshAll(); }, [refreshAll]);
+
+  useEffect(() => {
+    loadNotifications();
+    const interval = window.setInterval(loadNotifications, 60000);
+    return () => window.clearInterval(interval);
+  }, [loadNotifications]);
 
   useEffect(() => {
     if (!heatmapOn) return;
     api.getHeatmap(heatmapMode).then((data) => setHeatmapPoints(data.points));
   }, [heatmapOn, heatmapMode, pins]);
-
-  useEffect(() => {
-    if (coords && !hasFlownRef.current) {
-      hasFlownRef.current = true;
-      setRecenterTrigger((t) => t + 1);
-    }
-  }, [coords]);
 
   const handleClusterClick = (cluster: PinCluster) => {
     if (cluster.pins.length === 1) {
@@ -119,18 +132,63 @@ export default function MapView() {
     if (coords) setAddPinCoords({ lat: coords.lat, lng: coords.lng });
   };
 
+  const recenter = () => {
+    if (coords) setRecenterTrigger((t) => t + 1);
+    else refreshLocation();
+  };
+
+  const goToPin = (pinId: string, lat: number, lng: number) => {
+    setActiveStory(null);
+    setShowNotifications(false);
+    setShowMenu(false);
+    setFlyToTarget({ lat, lng, zoom: 16 });
+    setFlyToTargetKey((k) => k + 1);
+    window.setTimeout(() => setSelectedPin(pinId), 600);
+  };
+
+  const openNotifications = () => {
+    setShowNotifications(true);
+    markNotificationsRead();
+    setUnreadCount(0);
+  };
+
   return (
     <div className="map-app">
       <header className="app-header">
-        <div className="header-left">
-          <span className="app-title">LaRachaClub</span>
-        </div>
-        <div className="header-right">
-          <div className="user-badge" style={{ borderColor: user?.avatar_color }}>
+        <span className="app-title">LaRachaClub</span>
+        <div className="header-actions">
+          <button
+            type="button"
+            className="icon-btn notif-btn"
+            onClick={openNotifications}
+            aria-label="Notificaciones"
+          >
+            <IconBell size={18} />
+            {unreadCount > 0 && (
+              <span className="notif-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
+            )}
+          </button>
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={toggleTheme}
+            aria-label={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
+          >
+            {theme === 'dark' ? <IconSun size={18} /> : <IconMoon size={18} />}
+          </button>
+          <div
+            className="user-badge user-badge-btn"
+            style={{ borderColor: user?.avatar_color }}
+            onClick={() => setShowProfile(true)}
+            onKeyDown={(e) => e.key === 'Enter' && setShowProfile(true)}
+            role="button"
+            tabIndex={0}
+            title="Editar perfil"
+          >
             <div className="avatar xs" style={{ background: user?.avatar_color }}>
               {user?.nickname[0]}
             </div>
-            <span>{user?.nickname}</span>
+            <span className="user-name">{user?.nickname}</span>
           </div>
         </div>
       </header>
@@ -142,7 +200,7 @@ export default function MapView() {
       />
 
       {geoLoading && !coords && (
-        <div className="geo-status">📡 Obteniendo tu ubicación...</div>
+        <div className="geo-status">Obteniendo ubicación…</div>
       )}
       {geoError && !coords && (
         <div className="geo-status geo-error">
@@ -152,18 +210,21 @@ export default function MapView() {
 
       <div className="map-container">
         <MapContainer
-          center={mapCenter}
-          zoom={mapZoom}
+          center={DEFAULT_CENTER}
+          zoom={DEFAULT_ZOOM}
           minZoom={2}
-          maxZoom={18}
+          maxZoom={21}
           className="leaflet-map"
           worldCopyJump
         >
-          <TileLayer
-            attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          <GoogleMapLayer mapType={mapType} theme={theme} />
+          <MapFlyTo
+            coords={coords}
+            flyToOnLoad
+            recenterTrigger={recenterTrigger}
+            flyToTarget={flyToTarget}
+            flyToTargetKey={flyToTargetKey}
           />
-          <MapFlyTo coords={coords} flyToOnLoad recenterTrigger={recenterTrigger} />
           <MapClickHandler onMapClick={(lat, lng) => setAddPinCoords({ lat, lng })} />
           <UserLocationLayer coords={coords} />
 
@@ -188,60 +249,42 @@ export default function MapView() {
         </MapContainer>
       </div>
 
-      <div className="fab-bar">
-        <button
-          className="fab fab-location"
-          onClick={() => {
-            if (coords) setRecenterTrigger((t) => t + 1);
-            else refreshLocation();
-          }}
-          title="Mi ubicación"
-          disabled={geoLoading && !coords}
-        >
-          ◉
-        </button>
-        {coords && (
-          <button className="fab fab-secondary" onClick={pinAtMyLocation} title="Pin aquí">
-            📷
-          </button>
-        )}
-        <button
-          className={`fab ${heatmapOn ? 'active' : ''}`}
-          onClick={() => setHeatmapOn(!heatmapOn)}
-          title="Mapa de calor"
-        >
-          {heatmapOn ? '🔥' : '🗺️'}
-        </button>
-        {heatmapOn && (
-          <button className="fab fab-secondary" onClick={() => setShowHeatModes(!showHeatModes)}>
-            {HEATMAP_MODES.find((m) => m.id === heatmapMode)?.emoji || '🔥'}
-          </button>
-        )}
-        <button className="fab fab-secondary" onClick={openLeaderboard} title="Ranking">
-          🏆
-        </button>
-        <button className="fab fab-secondary" onClick={logout} title="Salir">
-          👋
-        </button>
-      </div>
+      <MapToolbar
+        hasLocation={!!coords}
+        geoLoading={geoLoading}
+        heatmapOn={heatmapOn}
+        onLocation={recenter}
+        onAddPin={pinAtMyLocation}
+        onHeatmapToggle={() => setHeatmapOn((v) => !v)}
+        onOpenMenu={() => setShowMenu(true)}
+      />
 
-      {showHeatModes && (
-        <div className="heatmap-modes">
-          {HEATMAP_MODES.map((m) => (
-            <button
-              key={m.id}
-              className={heatmapMode === m.id ? 'active' : ''}
-              onClick={() => { setHeatmapMode(m.id); setShowHeatModes(false); }}
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
+      {showMenu && (
+        <AppMenuSheet
+          onClose={() => setShowMenu(false)}
+          onOpenLeaderboard={openLeaderboard}
+          onOpenProfile={() => setShowProfile(true)}
+          onLogout={logout}
+          mapType={mapType}
+          onMapTypeChange={setMapType}
+          heatmapOn={heatmapOn}
+          heatmapMode={heatmapMode}
+          onHeatmapToggle={() => setHeatmapOn((v) => !v)}
+          onHeatmapModeChange={setHeatmapMode}
+        />
       )}
 
-      <div className="map-hint">
-        Toca el mapa para crear un pin · Varios pins juntos se agrupan
-      </div>
+      {showProfile && (
+        <ProfileSheet onClose={() => setShowProfile(false)} />
+      )}
+
+      {showNotifications && (
+        <NotificationsPanel
+          items={notifications}
+          onClose={() => setShowNotifications(false)}
+          onSelect={goToPin}
+        />
+      )}
 
       {addPinCoords && (
         <AddPinModal
@@ -283,6 +326,7 @@ export default function MapView() {
           startIndex={activeStory.index}
           onClose={() => setActiveStory(null)}
           onNextUser={openNextStoryUser}
+          onGoToMap={goToPin}
         />
       )}
     </div>

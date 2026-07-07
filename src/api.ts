@@ -1,6 +1,6 @@
 import type {
   User, AuthResponse, Pin, PinDetail, LeaderboardEntry,
-  HeatmapData, ReactionType, PlaceSuggestion, GeoResult, StoryGroup,
+  HeatmapData, ReactionType, PlaceSuggestion, GeoResult, StoryGroup, NotificationItem,
 } from './types';
 import { apiUrl, apiHeaders } from './config';
 
@@ -106,6 +106,14 @@ export async function getMe(): Promise<User> {
   return request<User>('/api/auth/me');
 }
 
+export async function updateNickname(nickname: string): Promise<User> {
+  return request<User>('/api/auth/me', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nickname }),
+  });
+}
+
 export async function getLeaderboard(): Promise<LeaderboardEntry[]> {
   return request<LeaderboardEntry[]>('/api/users/leaderboard');
 }
@@ -168,6 +176,10 @@ export async function getHeatmap(mode: string): Promise<HeatmapData> {
 
 export async function getStories(): Promise<StoryGroup[]> {
   return request<StoryGroup[]>('/api/stories');
+}
+
+export async function getNotifications(): Promise<NotificationItem[]> {
+  return request<NotificationItem[]>('/api/notifications');
 }
 
 export async function reverseGeocode(lat: number, lng: number): Promise<GeoResult> {
