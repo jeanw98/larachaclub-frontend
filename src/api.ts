@@ -154,11 +154,11 @@ export async function createPin(
   return request<Pin>('/api/pins', { method: 'POST', body: form });
 }
 
-export async function addComment(pinId: string, text: string, rating: number) {
+export async function addComment(pinId: string, text: string, rating?: number) {
   return request(`/api/pins/${pinId}/comments`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text, rating }),
+    body: JSON.stringify({ text, ...(rating != null ? { rating } : {}) }),
   });
 }
 

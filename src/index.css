@@ -1171,6 +1171,12 @@ html, body, #root {
   margin-top: 0.5rem;
 }
 
+.rated-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+
 .profile-save {
   width: 100%;
   margin-top: 1.25rem;

@@ -30,10 +30,11 @@ export default function PinDetailSheet({ pinId, onClose, onUpdate }: Props) {
   };
 
   const handleComment = async () => {
-    if (!comment.trim()) return;
+    if (!comment.trim() || !pin) return;
     setSubmitting(true);
     try {
-      await api.addComment(pinId, comment, rating);
+      const ratingToSend = pin.user_has_rated ? undefined : rating;
+      await api.addComment(pinId, comment, ratingToSend);
       setComment('');
       load();
       onUpdate();
@@ -41,6 +42,8 @@ export default function PinDetailSheet({ pinId, onClose, onUpdate }: Props) {
       setSubmitting(false);
     }
   };
+
+  const canRate = !pin?.user_has_rated;
 
   const mediaUrl = pin?.media_url || pin?.image_url || '';
   const mediaType = pin?.media_type || 'image';
@@ -98,17 +101,22 @@ export default function PinDetailSheet({ pinId, onClose, onUpdate }: Props) {
         </div>
 
         <div className="comment-form">
-          <div className="star-rating">
-            {[1, 2, 3, 4, 5].map((s) => (
-              <button
-                key={s}
-                className={`star ${s <= rating ? 'filled' : ''}`}
-                onClick={() => setRating(s)}
-              >
-                ★
-              </button>
-            ))}
-          </div>
+          {canRate ? (
+            <div className="star-rating">
+              {[1, 2, 3, 4, 5].map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  className={`star ${s <= rating ? 'filled' : ''}`}
+                  onClick={() => setRating(s)}
+                >
+                  ★
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="rated-hint">Ya calificaste esta publicación ({pin.user_rating}★)</p>
+          )}
           <div className="comment-input-row">
             <input
               type="text"
@@ -138,7 +146,9 @@ export default function PinDetailSheet({ pinId, onClose, onUpdate }: Props) {
               </div>
               <div className="comment-body">
                 <span className="comment-author">{c.nickname || c.cool_name}</span>
-                <span className="comment-stars">{'★'.repeat(c.rating)}</span>
+                {c.rating != null && (
+                  <span className="comment-stars">{'★'.repeat(c.rating)}</span>
+                )}
                 <p>{c.text}</p>
               </div>
             </div>

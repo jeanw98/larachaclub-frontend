@@ -38,6 +38,8 @@ export interface Pin {
   reactions?: Record<ReactionType, number>;
   comment_count?: number;
   avg_rating?: number | null;
+  user_has_rated?: boolean;
+  user_rating?: number | null;
 }
 
 export interface Comment {
@@ -45,7 +47,7 @@ export interface Comment {
   pin_id: string;
   user_id: string;
   text: string;
-  rating: number;
+  rating: number | null;
   created_at: string;
   nickname: string;
   cool_name?: string;
