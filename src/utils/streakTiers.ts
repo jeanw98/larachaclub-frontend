@@ -15,7 +15,7 @@ export function getCoitoTier(streak: number): string {
 }
 
 export function getEntrenoTier(streak: number): string {
-  if (streak <= 3) return 'Enquelnque';
+  if (streak <= 3) return 'Debilucho';
   if (streak <= 10) return 'Medio fuerte';
   return 'Goku';
 }
