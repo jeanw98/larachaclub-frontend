@@ -2021,6 +2021,47 @@ html, body, #root {
   color: var(--text);
 }
 
+.leaderboard-row.streak-row .leaderboard-info .streak-tier-badge {
+  display: inline-block;
+  margin-top: 0.15rem;
+  margin-bottom: 0.2rem;
+}
+
+.streak-live {
+  color: var(--primary);
+}
+
+.streak-broken {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.streak-row.on-streak {
+  border-color: color-mix(in srgb, var(--primary) 35%, transparent);
+}
+
+.streak-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 3rem;
+  line-height: 1;
+}
+
+.streak-score-num {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+.streak-score-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+}
+
 .leaderboard-list {
   display: flex;
   flex-direction: column;

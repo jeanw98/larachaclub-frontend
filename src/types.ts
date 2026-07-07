@@ -98,6 +98,7 @@ export interface StreakLeaderboardEntry {
   total_days: number;
   tier: string;
   rank_position?: number;
+  on_streak?: boolean;
 }
 
 export interface HeatmapData {

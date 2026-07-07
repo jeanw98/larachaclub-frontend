@@ -87,7 +87,7 @@ export default function Leaderboard({ onClose }: Props) {
           )}
 
           {!loading && tab !== 'pins' && streakEntries.length === 0 && (
-            <p className="empty-text">Nadie en racha activa todavía — ¡marca el primero!</p>
+            <p className="empty-text">Nadie ha registrado todavía — ¡sé el primero!</p>
           )}
 
           {!loading && tab === 'pins' && pinEntries.map((entry, i) => (
@@ -112,7 +112,7 @@ export default function Leaderboard({ onClose }: Props) {
           {!loading && tab !== 'pins' && streakEntries.map((entry, i) => (
             <div
               key={entry.id}
-              className={`leaderboard-row ${entry.id === user?.id ? 'is-me' : ''}`}
+              className={`leaderboard-row streak-row ${entry.id === user?.id ? 'is-me' : ''} ${entry.on_streak ? 'on-streak' : ''}`}
             >
               <span className={`rank ${i < 3 ? `top-${i + 1}` : ''}`}>{i + 1}</span>
               <div className="avatar sm" style={{ background: entry.avatar_color }}>
@@ -120,16 +120,24 @@ export default function Leaderboard({ onClose }: Props) {
               </div>
               <div className="leaderboard-info">
                 <span className="name">{entry.nickname}</span>
+                <span className="streak-tier-badge">{entry.tier}</span>
                 <span className="stats">
-                  <span className="streak-tier">{entry.tier}</span>
-                  {' · '}
-                  {entry.current_streak} días de racha
-                  {entry.longest_streak > entry.current_streak && (
-                    <> · mejor: {entry.longest_streak}</>
+                  {entry.on_streak ? (
+                    <strong className="streak-live">{entry.current_streak} días en racha 🔥</strong>
+                  ) : (
+                    <span className="streak-broken">Sin racha activa</span>
+                  )}
+                  {entry.longest_streak > 0 && (
+                    <> · mejor: {entry.longest_streak} · {entry.total_days} días totales</>
                   )}
                 </span>
               </div>
-              <span className="score">{entry.current_streak}🔥</span>
+              <div className="streak-score" title="Racha actual">
+                <span className="streak-score-num">{entry.current_streak}</span>
+                <span className="streak-score-label">
+                  {entry.on_streak ? 'días 🔥' : 'días'}
+                </span>
+              </div>
             </div>
           ))}
         </div>
